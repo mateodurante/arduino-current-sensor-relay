@@ -16,7 +16,7 @@ int inPinI = A0;
 //Calibration coeficients
 //These need to be set in order to obtain accurate results
 double VCAL = 1.0;
-double ICAL = 1.0;
+double ICAL = 0.07;
 double PHASECAL = 2.3;
 
 //Sample variables
@@ -98,14 +98,15 @@ apparentPower = Vrms * Irms;
 powerFactor = realPower / apparentPower;
 
 //Output to serial
+Serial.print("RealPower ");
 Serial.print(realPower);
-Serial.print(' ');
+Serial.print(" . apparentPower ");
 Serial.print(apparentPower);
-Serial.print(' ');
+Serial.print(" .  powerFactor ");
 Serial.print(powerFactor);
-Serial.print(' ');
+Serial.print(" .  Vrms ");
 Serial.print(Vrms);
-Serial.print(' ');
+Serial.print(" .  Irms ");
 Serial.println(Irms);
 
 //Reset accumulators
