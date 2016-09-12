@@ -1,38 +1,36 @@
+# Comunicate with arduino on serial port and expect web socket connections
+# to send and receive comunication
+# Green IT project licenced under GNU General Public Licence
+# Author: Mateo Durante
+
 import tornado
 import tornado.websocket
 from datetime import timedelta
 import datetime, sys, time
 from pprint import pprint
 import json
-#import bleach
-#import time
-
-# DB
-#from bson.objectid import ObjectId
-#from bson.json_util import dumps, loads
-#from pymongo import MongoClient
-#import json
-#client = MongoClient("localhost", 27017)
-#db = client.sinmensaje
+import serial.tools.list_ports
+import serial
 
 clients = []
+arduino_name = "SNR=95333353037351D071B0"
 
-import serial.tools.list_ports
 ports = serial.tools.list_ports.comports()
 print(ports)
 arduino_port = ""
 for p in ports:
     print (p)
-    if "SNR=95333353037351D071B0" in p[2]:
+    if arduino_name in p[2]:
         print ("This is an Arduino!")
+        print (p)
         arduino_port = p[0]
 
 if arduino_port == "":
     print ("Arduino not found")
     sys.exit("where is it?")
 
-import serial
-ser = serial.Serial(arduino_port, 9600) # Establish the connection on a specific por
+# Establish the connection on a specific port
+ser = serial.Serial(arduino_port, 9600)
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
     tt = datetime.datetime.now()
@@ -111,23 +109,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         print ("Client disconnected")
         clients.remove(self)
 
-#def send_message_to_clients():
-#    try:
-#        "algo?"
-#
-#        datos = db.received.find()
-#
-#        #read_my_data()
-#        for client in clients:
-#            print "huevada"
-#            #self.write_message("You are connected")
-#    finally:
-#        tornado.ioloop.IOLoop.instance().add_timeout(timedelta(seconds=1),
-#                                                     send_message_to_clients)
-
 socket = tornado.web.Application([(r"/websocket", WebSocketHandler),])
 if __name__ == "__main__":
     socket.listen(8888)
-    #tornado.ioloop.IOLoop.instance().add_timeout(timedelta(seconds=3),
-    #                                             send_message_to_clients)
     tornado.ioloop.IOLoop.instance().start()

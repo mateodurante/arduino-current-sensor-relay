@@ -85,74 +85,31 @@
   <ul id="mensajes"></ul>
 
   <script>
-  $("parser").hide();
-  var a = "";
-  var admins = ['5492215463293','5492215527078']
-  var mods = ['5492216066514']
-  function is_image_like(type){
-    return (type == "image" | type == "sticker" | type == "photo")
-  }
-  function add_message(data) {
-      var permissionLevel = 10;
-      var number = data.recipient;
-      if (admins.indexOf(number) >= 0) {
-        permissionLevel = 0;
-      } else if (mods.indexOf(number) >= 0) {
-        permissionLevel = 1;
-      } else {
-        permissionLevel = 2;
-      }
-      if (is_image_like(data.type) && imagesEnabled) {
-        var image = "<img  height='300' width='auto' src='"+data.path+"'></img>";
-        $( "#mensajes" ).append( "<li><div  class='mensaje'><div class='imagen'>"+image+"</div></div></li>" );
 
-      } else if (data.type == "text" && data.message) {
-        if (data.message.includes('#$')) {
-          var commands = data.message.split("#$",2);
-          console.log("check_origin");
-          if (permissionLevel <= 0) {
-            executeAsAdmin(commands);
-          }
-          if (permissionLevel <= 1) {
-            executeAsMod(commands);
-          }
-          executeAsUser(commands);
-        } else {
-          //var node = document.createElement("LI");
+$("parser").hide();
+function add_message(data) {
+  //var node = document.createElement("LI");
 
-          //var textnode = twemoji.parse(data.message);
-          //var textnode = document.createTextNode(data.message);
-          //var item = "<li class='message'>"+twemoji.parse(data.message)+"</li>";
-          $('#parser').text(data.message);
-          //node.appendChild(textnode);
-          //document.getElementById("mensajes").appendChild(node);
-        }
-      }
-  }
+  //var textnode = twemoji.parse(data.message);
+  //var textnode = document.createTextNode(data.message);
+  //var item = "<li class='message'>"+twemoji.parse(data.message)+"</li>";
+  $('#parser').text(data.message);
+  //node.appendChild(textnode);
+  //document.getElementById("mensajes").appendChild(node);
+}
 
-    var ws = new WebSocket("ws://localhost:8888/websocket");
-    ws.onopen = function() {
-       ws.send(JSON.stringify({"relay1": 1}));
-    };
-    ws.onmessage = function (evt) {
-      //var json = JSON.parse(evt.data);
-      console.log(evt);
-      //console.log(json);
-      //for (i = 0; i < json.length; i++) {
-          add_message(evt);
-      //}
-      window.scrollTo(0,document.body.scrollHeight);
-    };
-    window.onload = function() {
+var ws = new WebSocket("ws://localhost:8888/websocket");
+ws.onopen = function() {
+   ws.send(JSON.stringify({"relay1": 1}));
+};
+ws.onmessage = function (evt) {
+  console.log(evt);
+  add_message(evt);
+  window.scrollTo(0,document.body.scrollHeight);
+};
+window.onload = function() {
 
-      // Set the size of the rendered Emojis
-      // This can be set to 16x16, 36x36, or 72x72
-
-      // Parse the document body and
-      // insert <img> tags in place of Unicode Emojis
-      //twemoji.parse(document.body);
-
-    }
+}
   </script>
 </body>
 </html>

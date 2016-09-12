@@ -1,7 +1,12 @@
 //Measuring AC mains energy use the non-invasive current transformer method
-//Sketch calculates - Irms and Apparent power. Vrms needs to be set below.
-//OpenEnergyMonitor.org project licenced under GNU General Public Licence
-//Author: Trystan Lea
+//Arduino can receive serial value to open and close relay and set max AC to
+// permit flows through relay and sensor (1-30A)
+//Using acs712 (30A), its a invasive sensor (non-inductive)
+//Based on OpenEnergyMonitor.org, Trystan Lea project
+//Sketch calculates - Irms and Apparent power based on static voltage. SetV
+// needs to be set below.
+//Green IT project licenced under GNU General Public Licence
+//Author: Mateo Durante
 
 #define RELAY1    7
 #define C_SENSOR1 A0
@@ -64,11 +69,13 @@ void loop()
       r1_received = LOW;
       digitalWrite(RELAY1, LOW);
       r1 = 1;
-    } else if (incomingByte >= 101 && incomingByte <= 130) { // its max current (30 max), prevent carry jump \r (char(13)) readed, so added 100 to current value
+    } else if (incomingByte >= 101 && incomingByte <= 130) {
+      // its max current (30 max), prevent carry jump \r (char(13)) readed,
+      // so added 100 to current value
       c_max = incomingByte-100;
     }
   }
-  
+
   value = analogRead(C_SENSOR1);
 
   //Summing counter
@@ -102,12 +109,12 @@ void loop()
 
     //Calculation of the root of the mean of the voltage squared (rms)
 
-  
+
     if (Irms < c_min || Irms > c_max) {
       digitalWrite(RELAY1, HIGH);
       r1 = 0;
     }
-  
+
     apparentPower = Irms * SetV;
     Serial.print(" Watios: ");
     Serial.print(apparentPower);
