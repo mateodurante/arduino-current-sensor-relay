@@ -1,117 +1,128 @@
-//Basic energy monitoring sketch - by Trystan Lea
-//Licenced under GNU General Public Licence more details here
-// openenergymonitor.org
+//Measuring AC mains energy use the non-invasive current transformer method
+//Sketch calculates - Irms and Apparent power. Vrms needs to be set below.
+//OpenEnergyMonitor.org project licenced under GNU General Public Licence
+//Author: Trystan Lea
 
-//Sketch measures voltage and current.
-//and then calculates useful values like real power,
-//apparent power, powerfactor, Vrms, Irms.
+#define RELAY1    7
+#define C_SENSOR1 A0
 
-//Setup variables
-int numberOfSamples = 3000;
+//For analog read
+int r1 = LOW;
+int r1_received = LOW;
+int incomingByte = 0;   // for incoming serial data
+int c_min = 0;
+int c_max = 30;
 
-//Set Voltage and current input pins
-int inPinV = 2;
-int inPinI = A0;
+//For analog read
+double value;
 
-//Calibration coeficients
-//These need to be set in order to obtain accurate results
-double VCAL = 1.0;
-double ICAL = 0.07;
-double PHASECAL = 2.3;
+//Constants to convert ADC divisions into mains current values.
+double ADCvoltsperdiv = 0.0048;
+double VDoffset = 2.4476; //Initial value (corrected as program runs)
 
-//Sample variables
-int lastSampleV,lastSampleI,sampleV,sampleI;
+//Equation of the line calibration values
+double factorA = 15.35; //factorA = CT reduction factor / rsens
+double Ioffset = 0;
 
-//Filter variables
-double lastFilteredV, lastFilteredI, filteredV, filteredI;
-double filterTemp;
+//Constants set voltage waveform amplitude.
+double SetV = 217.0;
 
-//Stores the phase calibrated instantaneous voltage.
-double calibratedV;
+//Counter
+int i=0;
 
-//Power calculation variables
-double sqI,sqV,instP,sumI,sumV,sumP;
+int samplenumber = 4000;
 
-//Useful value variables
-double realPower,
-       apparentPower,
-       powerFactor,
-       Vrms,
-       Irms;
-       
+//Used for calculating real, apparent power, Irms and Vrms.
+double sumI=0.0;
+
+int sum1i=0;
+double sumVadc=0.0;
+
+double Vadc,Vsens,Isens,Imains,sqI,Irms;
+double apparentPower;
+
 void setup()
 {
-   Serial.begin(9600);
+  Serial.begin(9600);
+  pinMode(RELAY1, OUTPUT);
 }
 
 void loop()
 {
+  if (Serial.available() > 0) {
+    // read the incoming byte:
+    incomingByte = Serial.read();
 
-for (int n=0; n<numberOfSamples; n++)
-{
+    // say what you got:
+    //Serial.print("I received: ");
+    //Serial.println(incomingByte, DEC);
+    if (incomingByte == 48) {
+      r1_received = HIGH;
+      digitalWrite(RELAY1, HIGH);
+      r1 = 0;
+    } else if (incomingByte == 49) {
+      r1_received = LOW;
+      digitalWrite(RELAY1, LOW);
+      r1 = 1;
+    } else if (incomingByte >= 101 && incomingByte <= 130) { // its max current (30 max), prevent carry jump \r (char(13)) readed, so added 100 to current value
+      c_max = incomingByte-100;
+    }
+  }
+  
+  value = analogRead(C_SENSOR1);
 
-   //Used for offset removal
-   lastSampleV=sampleV;
-   lastSampleI=sampleI;
-   
-   //Read in voltage and current samples.   
-   sampleV = analogRead(inPinV);
-   sampleI = analogRead(inPinI);
-   
-   //Used for offset removal
-   lastFilteredV = filteredV;
-   lastFilteredI = filteredI;
- 
-   //Digital high pass filters to remove 2.5V DC offset.
-   filteredV = 0.996*(lastFilteredV+sampleV-lastSampleV);
-   filteredI = 0.996*(lastFilteredI+sampleI-lastSampleI);
-   
-   //Phase calibration goes here.
-   calibratedV = lastFilteredV + PHASECAL * (filteredV - lastFilteredV);
- 
-   //Root-mean-square method voltage
-   //1) square voltage values
-   sqV= calibratedV * calibratedV;
-   //2) sum
-   sumV += sqV;
-   
-   //Root-mean-square method current
-   //1) square current values
-   sqI = filteredI * filteredI;
-   //2) sum
-   sumI += sqI;
+  //Summing counter
+  i++;
 
-   //Instantaneous Power
-   instP = calibratedV * filteredI;
-   //Sum
-   sumP +=instP;
-}
+  //Voltage at ADC
+  Vadc = value * ADCvoltsperdiv;
 
-//Calculation of the root of the mean of the voltage and current squared (rms)
-//Calibration coeficients applied.
-Vrms = VCAL*sqrt(sumV / numberOfSamples);
-Irms = ICAL*sqrt(sumI / numberOfSamples);
+  //Remove voltage divider offset
+  Vsens = Vadc-VDoffset;
 
-//Calculation power values
-realPower = VCAL*ICAL*sumP / numberOfSamples;
-apparentPower = Vrms * Irms;
-powerFactor = realPower / apparentPower;
+  //Current transformer scale to find Imains
+  Imains = Vsens;
 
-//Output to serial
-Serial.print("RealPower ");
-Serial.print(realPower);
-Serial.print(" . apparentPower ");
-Serial.print(apparentPower);
-Serial.print(" .  powerFactor ");
-Serial.print(powerFactor);
-Serial.print(" .  Vrms ");
-Serial.print(Vrms);
-Serial.print(" .  Irms ");
-Serial.println(Irms);
+  //Calculates Voltage divider offset.
+  sum1i++; sumVadc = sumVadc + Vadc;
+  if (sum1i>=1000) {VDoffset = sumVadc/sum1i; sum1i = 0; sumVadc=0.0;}
 
-//Reset accumulators
-sumV = 0;
-sumI = 0;
-sumP = 0;
+  //Root-mean-square method current
+  //1) square current values
+  sqI = Imains*Imains;
+  //2) sum
+  sumI=sumI+sqI;
 
+  if (i>=samplenumber)
+  {
+    i=0;
+    //Calculation of the root of the mean of the current squared (rms)
+    Irms = factorA*sqrt(sumI/samplenumber)+Ioffset;
+    if (Irms<0.05) {Irms=0;}
+
+    //Calculation of the root of the mean of the voltage squared (rms)
+
+  
+    if (Irms < c_min || Irms > c_max) {
+      digitalWrite(RELAY1, HIGH);
+      r1 = 0;
+    }
+  
+    apparentPower = Irms * SetV;
+    Serial.print(" Watios: ");
+    Serial.print(apparentPower);
+    Serial.print(" Voltaje: ");
+    Serial.print(SetV);
+    Serial.print(" Amperios: ");
+    Serial.print(Irms);
+    Serial.print(" status: ");
+    Serial.print(r1);
+    Serial.print(" c_max: ");
+    Serial.print(c_max);
+    Serial.println();
+
+    //Reset values ready for next sample.
+    sumI=0.0;
+
+  }
 }
